@@ -28,11 +28,16 @@ public class FmToSMTConverter {
 
     private FeatureModel featureModel;
 
+    private SolverContext context;
+
+    public SolverContext getContext() {return context;}
+
     public FmToSMTConverter(FeatureModel featureModel) throws InvalidConfigurationException {
         this(SolverContextFactory.createSolverContext(Configuration.defaultConfiguration(), LogManager.createNullLogManager(), ShutdownManager.create().getNotifier(), SolverContextFactory.Solvers.Z3), featureModel);
     }
 
     public FmToSMTConverter(SolverContext context, FeatureModel featureModel) throws InvalidConfigurationException {
+        this.context = context;
         this.formulaManager = context.getFormulaManager();
         this.boolManager = this.formulaManager.getBooleanFormulaManager();
         this.intManager = this.formulaManager.getIntegerFormulaManager();
