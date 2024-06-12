@@ -9,6 +9,7 @@ public class SMTSatisfiabilityChecker {
 
     public SMTSatisfiabilityChecker(BooleanFormula baseFormula, SolverContext context) {
         this.prover = context.newProverEnvironment(SolverContext.ProverOptions.GENERATE_MODELS);
+        this.baseFormula = baseFormula;
         try {
             prover.addConstraint(baseFormula);
         } catch (InterruptedException e) {
@@ -18,7 +19,7 @@ public class SMTSatisfiabilityChecker {
 
     public boolean checkAndKeepIfSatisfiable(BooleanFormula formula) {
         try {
-            prover.addConstraint(baseFormula);
+            prover.push(formula);
             boolean sat = !prover.isUnsat();
             if (!sat) prover.pop();
             return sat;
