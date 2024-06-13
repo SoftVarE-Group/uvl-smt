@@ -28,6 +28,14 @@ public class SMTSatisfiabilityChecker {
         }
     }
 
+    public boolean isSat() {
+        try {
+            return !prover.isUnsat();
+        } catch (SolverException | InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     public static boolean isSatStatic(BooleanFormula booleanFormula, SolverContext context) {
         try (ProverEnvironment prover = context.newProverEnvironment(SolverContext.ProverOptions.GENERATE_MODELS)) {
             prover.addConstraint(booleanFormula);
