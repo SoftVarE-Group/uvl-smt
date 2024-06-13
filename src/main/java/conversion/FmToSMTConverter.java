@@ -33,7 +33,7 @@ public class FmToSMTConverter {
     public SolverContext getContext() {return context;}
 
     public FmToSMTConverter(FeatureModel featureModel) throws InvalidConfigurationException {
-        this(SolverContextFactory.createSolverContext(Configuration.defaultConfiguration(), LogManager.createNullLogManager(), ShutdownManager.create().getNotifier(), SolverContextFactory.Solvers.SMTINTERPOL), featureModel);
+        this(SolverContextFactory.createSolverContext(Configuration.defaultConfiguration(), LogManager.createNullLogManager(), ShutdownManager.create().getNotifier(), SolverContextFactory.Solvers.Z3), featureModel);
     }
 
     public FmToSMTConverter(SolverContext context, FeatureModel featureModel) throws InvalidConfigurationException {
@@ -151,8 +151,38 @@ public class FmToSMTConverter {
         } else if (expression instanceof NumberExpression) {
             NumberExpression numberExpression = (NumberExpression) expression;
             return intManager.makeNumber(numberExpression.getNumber());
+        } else if (expression instanceof SumAggregateFunctionExpression){
+            return convertSumAggregate((SumAggregateFunctionExpression) expression);
+        } else if (expression instanceof AvgAggregateFunctionExpression) {
+            return convertAvgAggregate((AvgAggregateFunctionExpression) expression);
         } else {
             return null;
         }
+    }
+
+
+    public NumeralFormula.IntegerFormula convertSumAggregate(SumAggregateFunctionExpression aggregate) {
+        String attributeName = aggregate.getAttribute().getIdentifier();
+        List<NumeralFormula.IntegerFormula> attributes = new ArrayList<>();
+        for (Feature feature : featureModel.getFeatureMap().values()) {
+            if (feature.getAttributes().containsKey(attributeName)) {
+                attributes.add(intManager.multiply(intManager.makeVariable(feature.getIdentifier()), intManager.makeVariable(feature.getAttributes().get(attributeName).getIdentifier())));
+            }
+        }
+        return intManager.sum(attributes);
+    }
+
+    public NumeralFormula.IntegerFormula convertAvgAggregate(AvgAggregateFunctionExpression aggregate) {
+        String attributeName = aggregate.getAttribute().getIdentifier();
+        List<NumeralFormula.IntegerFormula> attributes = new ArrayList<>();
+        List<NumeralFormula.IntegerFormula> dividers = new ArrayList<>();
+        for (Feature feature : featureModel.getFeatureMap().values()) {
+            if (feature.getAttributes().containsKey(attributeName)) {
+                attributes.add(intManager.multiply(intManager.makeVariable(feature.getIdentifier()), intManager.makeVariable(feature.getAttributes().get(attributeName).getIdentifier())));
+                dividers.add(intManager.makeVariable(feature.getIdentifier()));
+            }
+        }
+        if (dividers.isEmpty()) return intManager.makeNumber(0);
+        return intManager.divide(intManager.sum(attributes), intManager.sum(dividers));
     }
 }
