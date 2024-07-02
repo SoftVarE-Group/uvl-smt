@@ -1,10 +1,9 @@
 package conversion;
 
-import de.vill.model.Feature;
-import de.vill.model.FeatureModel;
-import de.vill.model.Group;
+import de.vill.model.*;
 import de.vill.model.constraint.*;
 import de.vill.model.expression.*;
+import de.vill.util.Constants;
 import org.sosy_lab.common.ShutdownManager;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
@@ -26,6 +25,8 @@ public class FmToSMTConverter {
 
     private RationalFormulaManager doubleManager;
 
+    private StringFormulaManager stringManager;
+
     private FeatureModel featureModel;
 
     private SolverContext context;
@@ -42,6 +43,7 @@ public class FmToSMTConverter {
         this.boolManager = this.formulaManager.getBooleanFormulaManager();
         this.intManager = this.formulaManager.getIntegerFormulaManager();
         this.doubleManager = this.formulaManager.getRationalFormulaManager();
+        this.stringManager = this.formulaManager.getStringFormulaManager();
         this.featureModel = featureModel;
     }
 
@@ -116,6 +118,11 @@ public class FmToSMTConverter {
             return convertConstraintToSMT(parenthesisConstraint.getContent());
         } else if (constraint instanceof EqualEquationConstraint) {
             EqualEquationConstraint equalEquationConstraint = (EqualEquationConstraint) constraint;
+            StringFormula left = getStringExpressionIfEligible(equalEquationConstraint.getLeft());
+            StringFormula right = getStringExpressionIfEligible(equalEquationConstraint.getRight());
+            if (left != null && right != null) {
+                return stringManager.equal(left, right);
+            }
             return intManager.equal(convertExpressionToSMT(equalEquationConstraint.getLeft()), convertExpressionToSMT(equalEquationConstraint.getRight()));
         } else if (constraint instanceof GreaterEqualsEquationConstraint) {
             GreaterEqualsEquationConstraint equalEquationConstraint = (GreaterEqualsEquationConstraint) constraint;
@@ -163,9 +170,27 @@ public class FmToSMTConverter {
             return convertSumAggregate((SumAggregateFunctionExpression) expression);
         } else if (expression instanceof AvgAggregateFunctionExpression) {
             return convertAvgAggregate((AvgAggregateFunctionExpression) expression);
+        } else if (expression instanceof LengthAggregateFunctionExpression) {
+            LengthAggregateFunctionExpression lengthAggregateFunctionExpression = (LengthAggregateFunctionExpression) expression;
+            return intManager.makeVariable(lengthAggregateFunctionExpression.getReference().getIdentifier() + "-len");
         } else {
             return null;
         }
+    }
+
+
+    private StringFormula getStringExpressionIfEligible(Expression expression) {
+        if (expression instanceof StringExpression) return stringManager.makeString(((StringExpression) expression).getString());
+        if (expression instanceof LiteralExpression) {
+            LiteralExpression literalExpression = (LiteralExpression) expression;
+            if (literalExpression.getContent() instanceof Feature) {
+                if (((Feature)literalExpression.getContent()).getFeatureType() == FeatureType.STRING) return stringManager.makeVariable(literalExpression.getContent().getIdentifier() + "-str"); // adapted name to differentiate between boolean feature
+            }
+            if (literalExpression.getContent() instanceof Attribute<?>) {
+                if (((Attribute<?>)literalExpression.getContent()).getType().equals(Constants.STRING)) return stringManager.makeVariable(literalExpression.getContent().getIdentifier());
+            }
+        }
+        return null;
     }
 
 
