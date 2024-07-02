@@ -80,7 +80,15 @@ public class FmToSMTConverter {
         } else if (group.GROUPTYPE == Group.GroupType.MANDATORY) {
             groupConstraint = boolManager.and(variables);
         } else if (group.GROUPTYPE == Group.GroupType.ALTERNATIVE) {
-            groupConstraint = boolManager.or(variables); // TODO: Replace
+            BooleanFormula atLeastOne = boolManager.or(variables);
+            List<BooleanFormula> pairClauses = new ArrayList<>();
+            for (int i = 0; i < group.getFeatures().size(); i++) {
+                for (int j = i; j < variables.size(); j++) {
+                    pairClauses.add(boolManager.or(boolManager.not(boolManager.makeVariable(group.getFeatures().get(i).getIdentifier())), boolManager.not(boolManager.makeVariable(group.getFeatures().get(j).getIdentifier()))));
+                }
+            }
+            pairClauses.add(atLeastOne);
+            groupConstraint = boolManager.and(pairClauses);
         } else {
             return boolManager.makeTrue(); // Optional
         }
