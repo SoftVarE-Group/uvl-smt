@@ -91,6 +91,11 @@ public class FmToSMTConverter {
             }
             pairClauses.add(atLeastOne);
             groupConstraint = boolManager.and(pairClauses);
+        } else if (group.GROUPTYPE == Group.GroupType.GROUP_CARDINALITY) { // TODO: is this even correct, assumes that managers share variables by identifier
+            List<NumeralFormula.IntegerFormula> intVariables = group.getFeatures().stream().map(x -> intManager.makeVariable(x.getIdentifier())).collect(Collectors.toList());
+            BooleanFormula lower = intManager.greaterOrEquals(intManager.sum(intVariables), intManager.makeNumber(group.getCardinality().lower));
+            BooleanFormula upper = intManager.greaterOrEquals(intManager.makeNumber(group.getCardinality().upper), intManager.sum(intVariables));
+            groupConstraint = boolManager.and(lower, upper);
         } else {
             return boolManager.makeTrue(); // Optional
         }
