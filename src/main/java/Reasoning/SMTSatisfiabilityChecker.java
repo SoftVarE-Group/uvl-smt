@@ -24,6 +24,7 @@ public class SMTSatisfiabilityChecker {
             if (!sat) prover.pop();
             return sat;
         } catch (SolverException | InterruptedException e) {
+            System.out.println(e.getMessage());
             throw new RuntimeException(e);
         }
     }

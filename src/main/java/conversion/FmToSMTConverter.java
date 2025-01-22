@@ -17,19 +17,19 @@ import java.util.stream.Collectors;
 
 public class FmToSMTConverter {
 
-    private FormulaManager formulaManager;
+    private final FormulaManager formulaManager;
 
-    private BooleanFormulaManager boolManager;
+    private final BooleanFormulaManager boolManager;
 
-    private IntegerFormulaManager intManager;
+    private final IntegerFormulaManager intManager;
 
-    private RationalFormulaManager doubleManager;
+    private final RationalFormulaManager doubleManager;
 
-    private StringFormulaManager stringManager;
+    private final StringFormulaManager stringManager;
 
-    private FeatureModel featureModel;
+    private final FeatureModel featureModel;
 
-    private SolverContext context;
+    private final SolverContext context;
 
     public SolverContext getContext() {return context;}
 
@@ -96,6 +96,8 @@ public class FmToSMTConverter {
             BooleanFormula lower = intManager.greaterOrEquals(intManager.sum(intVariables), intManager.makeNumber(group.getCardinality().lower));
             BooleanFormula upper = intManager.greaterOrEquals(intManager.makeNumber(group.getCardinality().upper), intManager.sum(intVariables));
             groupConstraint = boolManager.and(lower, upper);
+            CardinalityConverter converter = new CardinalityConverter(group.getCardinality().upper, group.getCardinality().lower, group.getFeatures(), boolManager);
+            groupConstraint = converter.convertCardinality();
         } else {
             return boolManager.makeTrue(); // Optional
         }
@@ -151,7 +153,6 @@ public class FmToSMTConverter {
         }
     }
 
-    // TODO: Aggregates missing
     public NumeralFormula.IntegerFormula convertExpressionToSMT(Expression expression) {
         if (expression instanceof AddExpression) {
             AddExpression addExpression = (AddExpression) expression;
