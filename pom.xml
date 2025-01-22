@@ -6,6 +6,20 @@
   <version>1.0-SNAPSHOT</version>
   <name>Archetype - UvlSMT</name>
   <url>http://maven.apache.org</url>
+  <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-surefire-plugin</artifactId>
+          <version>3.5.2</version>
+          <configuration>
+            <argLine>-Djava.library.path=/home/chico/git/uvl/uvl-smt/src/main/resources/bin</argLine>
+          </configuration>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+  </build>
   <dependencies>
     <dependency>
       <groupId>org.sosy-lab</groupId>
