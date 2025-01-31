@@ -2,6 +2,9 @@ package conversion;
 
 
 import Reasoning.SMTSatisfiabilityChecker;
+import de.vill.model.Feature;
+import de.vill.model.FeatureModel;
+import de.vill.model.Group;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.sosy_lab.common.ShutdownManager;
@@ -22,63 +25,92 @@ class ConstraintConversionTests {
 
     BooleanFormulaManager booleanManager;
 
+    List<String> booleanVariables;
+    final static String PARENT = "p";
+
+    FeatureModel emptyFeatureModel;
+
     @BeforeEach
     void setup() throws InvalidConfigurationException {
         this.context = SolverContextFactory.createSolverContext(Configuration.defaultConfiguration(), LogManager.createNullLogManager(), ShutdownManager.create().getNotifier(), SolverContextFactory.Solvers.Z3);
         this.booleanManager = context.getFormulaManager().getBooleanFormulaManager();
+
+        booleanVariables = new ArrayList<>();
+        booleanVariables.add("a");
+        booleanVariables.add("b");
+        booleanVariables.add("c");
+        booleanVariables.add("d");
+        booleanVariables.add("e");
+
+        emptyFeatureModel = new FeatureModel();
     }
     @Test
     void testCardinalities() {
-        List<String> variables = new ArrayList<>();
-        variables.add("a");
-        variables.add("b");
-        variables.add("c");
-        variables.add("d");
-        variables.add("e");
 
-        BooleanFormula cardinality23 = buildCardinality(variables, 2 , 3);
+
+        BooleanFormula cardinality23 = buildCardinality(booleanVariables, 2 , 3);
 
         // [2,3] & 2 selected == SAT
-        BooleanFormula satAssignment11 = buildSimpleAssignment(variables, 2, 3);
+        BooleanFormula satAssignment11 = buildSimpleAssignment(booleanVariables, 2, 3);
         assert SMTSatisfiabilityChecker.isSatStatic(booleanManager.and(cardinality23, satAssignment11), context);
 
         // [2,3] & 3 selected == SAT
-        BooleanFormula satAssignment12 = buildSimpleAssignment(variables, 3, 1);
+        BooleanFormula satAssignment12 = buildSimpleAssignment(booleanVariables, 3, 1);
         assert SMTSatisfiabilityChecker.isSatStatic(booleanManager.and(cardinality23, satAssignment12), context);
 
         // [2,3] & 4 selected == !SAT
-        BooleanFormula unsatAssignment11 = buildSimpleAssignment(variables, 4, 1);
+        BooleanFormula unsatAssignment11 = buildSimpleAssignment(booleanVariables, 4, 1);
         assert !SMTSatisfiabilityChecker.isSatStatic(booleanManager.and(cardinality23, unsatAssignment11), context);
 
         // [2,3] & 4 deselected == !SAT
-        BooleanFormula unsatAssignment12 = buildSimpleAssignment(variables, 1, 4);
+        BooleanFormula unsatAssignment12 = buildSimpleAssignment(booleanVariables, 1, 4);
         assert !SMTSatisfiabilityChecker.isSatStatic(booleanManager.and(cardinality23, unsatAssignment12), context);
 
 
-        BooleanFormula cardinality14 = buildCardinality(variables, 1, 4);
+        BooleanFormula cardinality14 = buildCardinality(booleanVariables, 1, 4);
 
         // [1,4] & 1 selected == SAT
-        BooleanFormula satAssignment21 = buildSimpleAssignment(variables, 1, 4);
+        BooleanFormula satAssignment21 = buildSimpleAssignment(booleanVariables, 1, 4);
         assert SMTSatisfiabilityChecker.isSatStatic(booleanManager.and(cardinality14, satAssignment21), context);
 
         // [1,4] & 3 selected == SAT
-        BooleanFormula satAssignment22 = buildSimpleAssignment(variables, 3, 0);
+        BooleanFormula satAssignment22 = buildSimpleAssignment(booleanVariables, 3, 0);
         assert SMTSatisfiabilityChecker.isSatStatic(booleanManager.and(cardinality14, satAssignment22), context);
 
         // [1,4] & 5 selected == !SAT
-        BooleanFormula unsatAssignment21 = buildSimpleAssignment(variables, 5, 0);
+        BooleanFormula unsatAssignment21 = buildSimpleAssignment(booleanVariables, 5, 0);
         assert SMTSatisfiabilityChecker.isSatStatic(booleanManager.and(cardinality14, satAssignment21), context);
 
         // [1,4] & 5 deselected == !SAT
-        BooleanFormula unsatAssignment22 = buildSimpleAssignment(variables, 0, 5);
+        BooleanFormula unsatAssignment22 = buildSimpleAssignment(booleanVariables, 0, 5);
         assert SMTSatisfiabilityChecker.isSatStatic(booleanManager.and(cardinality14, satAssignment22), context);
+    }
 
+    @Test
+    void testAlternative() throws InvalidConfigurationException {
+        BooleanFormula alternative = buildAlternative(booleanVariables);
 
+        BooleanFormula satAssignment = buildSimpleAssignment(booleanVariables, 1, 2);
+        assert SMTSatisfiabilityChecker.isSatStatic(alternative, context);
+
+        BooleanFormula unsatAssignment = buildSimpleAssignment(booleanVariables, 2, 0);
+        assert !SMTSatisfiabilityChecker.isSatStatic(booleanManager.and(alternative, unsatAssignment), context);
     }
 
     private BooleanFormula buildCardinality(List<String> variables, int lower, int upper) {
         CardinalityConverter converter = new CardinalityConverter(variables, lower, upper, booleanManager);
         return converter.convertCardinality();
+    }
+
+    private BooleanFormula buildAlternative(List<String> variables) throws InvalidConfigurationException {
+        FmToSMTConverter converter = new FmToSMTConverter(emptyFeatureModel);
+        Feature parentFeature = new Feature(PARENT);
+        Group alternative = new Group(Group.GroupType.ALTERNATIVE);
+        alternative.setParentFeature(parentFeature);
+        for (String variable : variables) {
+            alternative.getFeatures().add(new Feature(variable));
+        }
+        return converter.convertGroup(alternative);
     }
 
     private BooleanFormula buildSimpleAssignment(List<String> variables, int numberSelected, int numberDeselected) {

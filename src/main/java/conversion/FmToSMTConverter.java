@@ -12,7 +12,9 @@ import org.sosy_lab.java_smt.SolverContextFactory;
 import org.sosy_lab.java_smt.api.*;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 public class FmToSMTConverter {
@@ -31,6 +33,8 @@ public class FmToSMTConverter {
 
     private final SolverContext context;
 
+    private Map<String, List<BooleanFormula>> attributeAverageSetters;
+
     public SolverContext getContext() {return context;}
 
     public FmToSMTConverter(FeatureModel featureModel) throws InvalidConfigurationException {
@@ -45,6 +49,7 @@ public class FmToSMTConverter {
         this.doubleManager = this.formulaManager.getRationalFormulaManager();
         this.stringManager = this.formulaManager.getStringFormulaManager();
         this.featureModel = featureModel;
+        this.attributeAverageSetters = new HashMap<>();
     }
 
     public BooleanFormula convertFeatureModel() {
@@ -54,13 +59,23 @@ public class FmToSMTConverter {
     public BooleanFormula convertTree() {
         List<BooleanFormula> formulaParts = new ArrayList<>();
         for (Feature feature : featureModel.getFeatureMap().values()) {
+            BooleanFormula featureVariable = boolManager.makeVariable(feature.getIdentifier());
             if (feature.getParentGroup() == null) { // Root
-                formulaParts.add(boolManager.makeVariable(feature.getIdentifier()));
+                formulaParts.add(featureVariable);
             } else {
-                formulaParts.add(boolManager.implication(boolManager.makeVariable(feature.getIdentifier()), boolManager.makeVariable(feature.getParentFeature().getIdentifier())));
+                formulaParts.add(boolManager.implication(featureVariable, boolManager.makeVariable(feature.getParentFeature().getIdentifier())));
             }
             for (Group group : feature.getChildren()) {
                 formulaParts.add(convertGroup(group));
+            }
+            for (Attribute<?> att : feature.getAttributes().values()) {
+                if (att.getType().equals(Constants.NUMBER)) {
+                    NumeralFormula.IntegerFormula attributeVariable = intManager.makeVariable(getAttributeIdentifier(feature, att));
+                    BooleanFormula selectedImplication = boolManager.implication(featureVariable, intManager.equal(attributeVariable, intManager.makeNumber((int) att.getValue())));
+                    formulaParts.add(selectedImplication);
+                    BooleanFormula unselectedImplication = boolManager.implication(boolManager.not(featureVariable), intManager.equal(attributeVariable, intManager.makeNumber(0)));
+                    formulaParts.add(unselectedImplication);
+                }
             }
         }
         return boolManager.and(formulaParts);
@@ -70,6 +85,9 @@ public class FmToSMTConverter {
         List<BooleanFormula> formulaParts = new ArrayList<>();
         for (Constraint constraint : featureModel.getOwnConstraints()) {
             formulaParts.add(convertConstraintToSMT(constraint));
+        }
+        for (List<BooleanFormula> set : attributeAverageSetters.values()) {
+            formulaParts.addAll(set);
         }
         return boolManager.and(formulaParts);
     }
@@ -85,7 +103,7 @@ public class FmToSMTConverter {
             BooleanFormula atLeastOne = boolManager.or(variables);
             List<BooleanFormula> pairClauses = new ArrayList<>();
             for (int i = 0; i < group.getFeatures().size(); i++) {
-                for (int j = i; j < variables.size(); j++) {
+                for (int j = i + 1; j < variables.size(); j++) {
                     pairClauses.add(boolManager.or(boolManager.not(boolManager.makeVariable(group.getFeatures().get(i).getIdentifier())), boolManager.not(boolManager.makeVariable(group.getFeatures().get(j).getIdentifier()))));
                 }
             }
@@ -164,7 +182,11 @@ public class FmToSMTConverter {
             return intManager.divide(convertExpressionToSMT(divExpression.getLeft()), convertExpressionToSMT(divExpression.getRight()));
         } else if (expression instanceof  LiteralExpression) {
             LiteralExpression literalExpression = (LiteralExpression) expression;
-            return intManager.makeVariable(literalExpression.getContent().getIdentifier());
+            if (literalExpression.getContent() instanceof Attribute<?>) {
+                Attribute<?> attribute = (Attribute<?>) literalExpression.getContent();
+                return intManager.makeVariable(getAttributeIdentifier(attribute.getFeature(), attribute));
+            }
+            return intManager.makeVariable(literalExpression.getContent().getIdentifier()); // Feature
         } else if (expression instanceof NumberExpression) {
             NumberExpression numberExpression = (NumberExpression) expression;
             return intManager.makeNumber(numberExpression.getNumber());
@@ -201,7 +223,7 @@ public class FmToSMTConverter {
         List<NumeralFormula.IntegerFormula> attributes = new ArrayList<>();
         for (Feature feature : featureModel.getFeatureMap().values()) {
             if (feature.getAttributes().containsKey(attributeName)) {
-                attributes.add(intManager.multiply(intManager.makeVariable(feature.getIdentifier()), intManager.makeVariable(feature.getAttributes().get(attributeName).getIdentifier())));
+                attributes.add(intManager.makeVariable(getAttributeIdentifier(feature, feature.getAttributes().get(attributeName))));
             }
         }
         return intManager.sum(attributes);
@@ -211,13 +233,27 @@ public class FmToSMTConverter {
         String attributeName = aggregate.getAttribute().getIdentifier();
         List<NumeralFormula.IntegerFormula> attributes = new ArrayList<>();
         List<NumeralFormula.IntegerFormula> dividers = new ArrayList<>();
+        List<BooleanFormula> setters = new ArrayList<>();
         for (Feature feature : featureModel.getFeatureMap().values()) {
             if (feature.getAttributes().containsKey(attributeName)) {
-                attributes.add(intManager.multiply(intManager.makeVariable(feature.getIdentifier()), intManager.makeVariable(feature.getAttributes().get(attributeName).getIdentifier())));
-                dividers.add(intManager.makeVariable(feature.getIdentifier()));
+                attributes.add(intManager.makeVariable(getAttributeIdentifier(feature, feature.getAttributes().get(attributeName))));
+                NumeralFormula.IntegerFormula dividerVariable = intManager.makeVariable(feature.getIdentifier() + "_" + "AVG_INT");
+                dividers.add(dividerVariable);
+                if (!attributeAverageSetters.containsKey(attributeName)) {
+                    setters.add(boolManager.implication(boolManager.makeVariable(feature.getIdentifier()), intManager.equal(dividerVariable, intManager.makeNumber(1))));
+                    setters.add(boolManager.implication(boolManager.not(boolManager.makeVariable(feature.getIdentifier())), intManager.equal(dividerVariable, intManager.makeNumber(0))));
+                }
             }
         }
         if (dividers.isEmpty()) return intManager.makeNumber(0);
+        if (!attributeAverageSetters.containsKey(attributeName)) {
+            attributeAverageSetters.put(attributeName, setters);
+        }
         return intManager.divide(intManager.sum(attributes), intManager.sum(dividers));
     }
+
+    private static String getAttributeIdentifier(Feature feature, Attribute<?> attribute) {
+        return feature.getIdentifier() + "." + attribute.getName();
+    }
+
 }
