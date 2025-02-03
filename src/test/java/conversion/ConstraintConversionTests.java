@@ -88,13 +88,17 @@ class ConstraintConversionTests {
 
     @Test
     void testAlternative() throws InvalidConfigurationException {
-        BooleanFormula alternative = buildAlternative(booleanVariables);
+        BooleanFormula alternative = buildGroup(booleanVariables, Group.GroupType.ALTERNATIVE);
+        BooleanFormula parentLiteral = booleanManager.makeVariable(PARENT);
 
         BooleanFormula satAssignment = buildSimpleAssignment(booleanVariables, 1, 2);
-        assert SMTSatisfiabilityChecker.isSatStatic(alternative, context);
+        assert SMTSatisfiabilityChecker.isSatStatic(booleanManager.and(alternative, parentLiteral, satAssignment), context);
 
         BooleanFormula unsatAssignment = buildSimpleAssignment(booleanVariables, 2, 0);
-        assert !SMTSatisfiabilityChecker.isSatStatic(booleanManager.and(alternative, unsatAssignment), context);
+        assert !SMTSatisfiabilityChecker.isSatStatic(booleanManager.and(alternative, parentLiteral, unsatAssignment), context);
+
+        BooleanFormula unsatAssignment2 = buildSimpleAssignment(booleanVariables, 0, 5);
+        assert !SMTSatisfiabilityChecker.isSatStatic(booleanManager.and(alternative, parentLiteral, unsatAssignment2), context);
     }
 
     private BooleanFormula buildCardinality(List<String> variables, int lower, int upper) {
@@ -102,10 +106,10 @@ class ConstraintConversionTests {
         return converter.convertCardinality();
     }
 
-    private BooleanFormula buildAlternative(List<String> variables) throws InvalidConfigurationException {
-        FmToSMTConverter converter = new FmToSMTConverter(emptyFeatureModel);
+    private BooleanFormula buildGroup(List<String> variables, Group.GroupType type) throws InvalidConfigurationException {
+        FmToSMTConverter converter = new FmToSMTConverter(context, emptyFeatureModel);
         Feature parentFeature = new Feature(PARENT);
-        Group alternative = new Group(Group.GroupType.ALTERNATIVE);
+        Group alternative = new Group(type);
         alternative.setParentFeature(parentFeature);
         for (String variable : variables) {
             alternative.getFeatures().add(new Feature(variable));

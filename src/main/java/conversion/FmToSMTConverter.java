@@ -69,7 +69,7 @@ public class FmToSMTConverter {
                 formulaParts.add(convertGroup(group));
             }
             for (Attribute<?> att : feature.getAttributes().values()) {
-                if (att.getType().equals(Constants.NUMBER)) {
+                if (att.getType().equals(Constants.NUMBER)) { // TODO: Only needed if attribute appears in constraint
                     NumeralFormula.IntegerFormula attributeVariable = intManager.makeVariable(getAttributeIdentifier(feature, att));
                     BooleanFormula selectedImplication = boolManager.implication(featureVariable, intManager.equal(attributeVariable, intManager.makeNumber((int) att.getValue())));
                     formulaParts.add(selectedImplication);
