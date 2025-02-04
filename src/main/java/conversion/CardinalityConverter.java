@@ -44,9 +44,15 @@ public class CardinalityConverter {
 
     public BooleanFormula convertCardinality() {
         List<BooleanFormula> formulas = new ArrayList<>();
+        assert lower <= upper;
         if (upper == 0) { // all variables are dead
             for (String originalVariable : originalVariables) {
                 formulas.add(formulaManager.not(formulaManager.makeVariable(originalVariable)));
+            }
+            return formulaManager.and(formulas);
+        } else if (lower == originalVariables.size()) {
+            for (String originalVariable : originalVariables) { // all variables are core
+                formulas.add(formulaManager.makeVariable(originalVariable));
             }
             return formulaManager.and(formulas);
         } else {

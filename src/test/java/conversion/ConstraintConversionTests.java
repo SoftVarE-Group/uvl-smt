@@ -89,6 +89,43 @@ class ConstraintConversionTests {
         // [1,4] & 5 deselected == !SAT
         BooleanFormula unsatAssignment22 = buildSimpleAssignment(booleanVariables, 0, 5);
         assert SMTSatisfiabilityChecker.isSatStatic(booleanManager.and(cardinality14, satAssignment22), context);
+
+        BooleanFormula cardinality55 = buildCardinality(booleanVariables, 5, 5);
+
+        // [5,5] & 5 selected == SAT
+        BooleanFormula satAssignment50 = buildSimpleAssignment(booleanVariables, 5, 0);
+        assert SMTSatisfiabilityChecker.isSatStatic(booleanManager.and(cardinality55, satAssignment50), context);
+
+        // [5,5] & 1 deselected == !SAT
+        BooleanFormula unsatAssignment01 = buildSimpleAssignment(booleanVariables, 0, 1);
+        assert !SMTSatisfiabilityChecker.isSatStatic(booleanManager.and(cardinality55, unsatAssignment01), context);
+
+        BooleanFormula cardinality44 = buildCardinality(booleanVariables, 4, 4);
+
+        // [4,4] & 2 deselected == !SAT
+        BooleanFormula unsatAssignment02 = buildSimpleAssignment(booleanVariables, 0, 2);
+        assert !SMTSatisfiabilityChecker.isSatStatic(booleanManager.and(cardinality44, unsatAssignment02), context);
+
+        BooleanFormula cardinality25 = buildCardinality(booleanVariables, 2, 5);
+
+        // [2,5] & 3 selected == SAT
+        BooleanFormula satAssignment30 = buildSimpleAssignment(booleanVariables, 3, 0);
+        assert SMTSatisfiabilityChecker.isSatStatic(booleanManager.and(cardinality25, satAssignment30), context);
+
+        // [2,5] & 4 deselected == !SAT
+        BooleanFormula unsatAssignment04 = buildSimpleAssignment(booleanVariables, 0,4);
+        assert !SMTSatisfiabilityChecker.isSatStatic(booleanManager.and(cardinality25, unsatAssignment04), context);
+
+
+        BooleanFormula cardinality03 = buildCardinality(booleanVariables, 0, 3);
+
+        // [0,3] & 2 selected == SAT
+        BooleanFormula satAssignment20 = buildSimpleAssignment(booleanVariables, 2, 0);
+        assert SMTSatisfiabilityChecker.isSatStatic(booleanManager.and(cardinality03, satAssignment20), context);
+
+        // [0,3] & 3 deselected == !SAT
+        BooleanFormula unsatAssignment40 = buildSimpleAssignment(booleanVariables, 4, 0);
+        assert !SMTSatisfiabilityChecker.isSatStatic(booleanManager.and(cardinality03, unsatAssignment40), context);
     }
 
     @Test
