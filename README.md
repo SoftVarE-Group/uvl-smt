@@ -21,3 +21,6 @@ try {
 smtChecker = new SMTSatisfiabilityChecker(smtConverter.convertFeatureModel(), smtConverter.getContext());
 smtChecker.isSat();
 ```
+
+### Known issues
+* The underlying SMT library (JavaSMT with z3) does not treat constraint with division by zero as UNSAT, which may cause unintended effects
