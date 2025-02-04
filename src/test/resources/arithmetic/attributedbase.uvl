@@ -1,0 +1,14 @@
+features
+    Root
+        optional
+            OptionalOne {Price 7}
+            OptionalTwo {Price 1}
+        mandatory
+            MandatoryOne {Price 4}
+            MandatoryTwo {Price 5}
+        alternative
+            AlternativeOne {Price 20}
+            AlternativeTwo {Price 10}
+        or
+            OrOne {Price 3}
+            OrTwo {Price 2}

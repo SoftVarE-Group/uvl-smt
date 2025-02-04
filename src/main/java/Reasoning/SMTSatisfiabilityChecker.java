@@ -17,6 +17,11 @@ public class SMTSatisfiabilityChecker {
         }
     }
 
+    /**
+     * Checks the satisfiability of baseFormula & formula and only pops the formula from the solver if it is unsat
+     * @param formula to check in context of baseFormula
+     * @return true if sat
+     */
     public boolean checkAndKeepIfSatisfiable(BooleanFormula formula) {
         try {
             prover.push(formula);
@@ -29,6 +34,27 @@ public class SMTSatisfiabilityChecker {
         }
     }
 
+    /**
+     * Checks the satisfiability of baseFormula & formula and then pops formula from the solver again
+     * @param formula to check in context of baseFormula
+     * @return true if sat
+     */
+    public boolean isSatWith(BooleanFormula formula) {
+        try {
+            prover.push(formula);
+            boolean sat = !prover.isUnsat();
+            prover.pop();
+            return sat;
+        } catch (SolverException | InterruptedException e) {
+            System.out.println(e.getMessage());
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * Checks satisfiability of baseformula
+     * @return true if sat
+     */
     public boolean isSat() {
         try {
             return !prover.isUnsat();
